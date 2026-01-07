@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import support as sp
 
 # 识别灯条
 class LightBarDetector:
@@ -26,15 +27,6 @@ class LightBarDetector:
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
         return binary
-    
-    # 统一旋转矩形的w、h、angle
-    def standardRect(self, Rect):
-        _, (w, h), angle = Rect
-        if w > h:
-            w, h = h, w
-        else:
-            angle += 90
-        return w, h, angle
 
     # 检测灯条
     def detect(self, frame):
@@ -53,7 +45,7 @@ class LightBarDetector:
             
             # 生成旋转矩形
             min_rect = cv2.minAreaRect(cnt)
-            w, h, angle = self.standardRect(min_rect)
+            _, (w, h), angle = sp.standardRect(min_rect)
             aspect_ratio = h / w
             
             # 筛选：长宽比+角度符合要求
@@ -62,44 +54,7 @@ class LightBarDetector:
                 and
                 self.angle_range[0] <= angle <= self.angle_range[1]
                 ):
-                box = cv2.boxPoints(min_rect).astype(np.int32)  # 转换为矩形顶点
-                light_bars.append(box)
+
+                light_bars.append(min_rect)
         
         return light_bars
-
-
-# 测试
-if __name__ == "__main__":
-    detector = LightBarDetector(enemy_color="red")
-
-    frame = cv2.imread('video_and_image\\image2.png')
-    de_1 = detector.preprocess(frame)
-
-    bars = detector.detect(frame)
-
-    cv2.drawContours(frame, bars, -1, (0, 255, 0), 2)  # 绿色框标记灯条
-    cv2.imshow("Light Bar Detection", frame)
-    cv2.imshow('1', de_1)
-
-    # cap = cv2.VideoCapture("video_and_image\\test02.mp4")
-
-    # while cap.isOpened():
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-        
-    #     light_bars = detector.detect(frame)
-        
-    #     # 绘制旋转矩形
-    #     for rect in light_bars:
-    #         box = cv2.boxPoints(rect).astype(np.int32)  # 转换为矩形顶点
-    #         cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)  # 绿色框标记灯条
-        
-    #     cv2.imshow("Light Bar Detection", frame)
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #         break
-
-    # cap.release()
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
