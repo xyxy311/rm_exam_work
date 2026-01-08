@@ -13,17 +13,38 @@ class LightBarDetector:
 
     # 对颜色通道图二值化，同时进行形态学操作
     def preprocess(self, frame):
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         if self.enemy_color == "red":
-            # 红方则提取红色通道
+            # 红方则提取红色区域
             channel = frame[:, :, 2]
+            mask1 = cv2.inRange(hsv, (0,29,193), (10, 255, 255))
+            mask2 = cv2.inRange(hsv, (170,29,193), (180, 255, 255))
+            mask = cv2.bitwise_or(mask1, mask2)
+
         else:  # blue
             channel = frame[:, :, 0]
-        
-        # 二值化
-        _, binary = cv2.threshold(channel, 220, 255, cv2.THRESH_BINARY)
+            mask = cv2.inRange(hsv, (100, 29, 193), (120, 255, 255))
+
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.dilate(mask, kernel, iterations=5)  # 给一点膨胀
+
+        # 提取掩码部分
+        channel = clahe.apply(channel)
+        channel = cv2.bitwise_and(channel, channel, mask=mask)
+
+        # 对每个区域单独二值化，减少光晕的影响
+        num_labels, labels = cv2.connectedComponents(channel, connectivity=8)
+        for i in range(1, num_labels):
+            max = np.max(channel[labels == i])
+            channel[labels == i] = np.where(channel[labels == i] > max / 255 * 245, max, 0)
+
+        # 整体二值化
+        _, binary = cv2.threshold(channel, 160, 255, cv2.THRESH_BINARY)
         
         # 形态学操作
-        kernel = np.ones((3, 3), np.uint8)
+        kernel = np.ones((5, 5), np.uint8)
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
         return binary

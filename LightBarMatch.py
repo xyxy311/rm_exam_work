@@ -37,41 +37,38 @@ class LightBarMatch:
         return white_pixes / abs(x2 - x1)
 
     # 将配对成功的灯条转换成装甲板矩形
-    def rect2Armor(self, bar1, bar2):
-        # 确保 bar1 在左边
-        if bar1[0][0] > bar2[0][0]:
-            bar1, bar2 = bar2, bar1
+    def rectToArmor(self, bar1, bar2):
 
-        # 转换为矩形顶点
-        box1 = cv2.boxPoints(bar1).astype(np.int32)
-        box2 = cv2.boxPoints(bar2).astype(np.int32)
+        # 计算平均角度作为装甲板两边的倾斜角度
+        angle1 = bar1[2]
+        angle2 = bar2[2]
+        armor_angle = (angle1 + angle2) / 2
 
-        # 合并矩形
-        box = np.array((box1, box2)).reshape((8, 2))
-        armor = cv2.minAreaRect(box)
+        line1 = sp.rectToline(bar1)
+        line2 = sp.rectToline(bar2)
 
-        return armor  # 返回旋转矩形
+        armor = (line1[0], line1[1], line2[1], line2[0])
+
+        return np.int32(armor)  # 返回装甲板矩形
 
     # 灯条配对算法，返回配对成功的矩形（即装甲板）
     def matchLight(self, light_bars, gray_img):
-        armors = []  # 配对成功的装甲板矩形列表
 
-        for i1, bar1 in enumerate(light_bars[:len(light_bars) - 1]):
+        matched = [[], [], []] # 标记已配对成功的灯条索引和分数，用于去重
+        armors = []  # 配对成功的装甲板矩形列表，带有分数
+        rects = list(map(sp.standardRect, light_bars))  # 统一旋转矩形
+
+        for i1, rect1 in enumerate(rects[:len(light_bars) - 1]):
             score_max = -1
             index_max = -1  # 配对得分最高的灯条索引
 
-            for i2, bar2 in enumerate(light_bars[i1 + 1:], i1 + 1): # 避免重复配对
-
-                # 统一度量衡
-                rect1 = sp.standardRect(bar1)
-                rect2 = sp.standardRect(bar2)
-
+            for i2, rect2 in enumerate(rects[i1 + 1:], i1 + 1): # 避免重复配对
                 angle_abs = self.filterLight(rect1, rect2)
 
                 # 初步筛选成功，通过角度差和白色像素数量占比计算配对得分
                 if angle_abs is not None:
                     whites = self.caculateWhites(rect1, rect2, gray_img)
-                    score = whites - (angle_abs / self.thresh_angle)
+                    score = 2 * whites - (angle_abs / self.thresh_angle)
 
                     # 更新最大得分和配对灯条索引
                     if score > score_max:
@@ -79,5 +76,22 @@ class LightBarMatch:
                         index_max = i2
 
             if index_max != -1:  # 配对成功
-                armors.append(self.rect2Armor(bar1, light_bars[index_max]))
+                if i1 not in matched[1] and index_max not in matched[1]:
+                    matched[0].append(i1)
+                    matched[1].append(index_max)
+                    matched[2].append(score_max)
+                else:  # 避免重复配对
+                    for i, i2 in enumerate(matched[1]):
+                        if i2 == index_max:
+                            break  # 先找到重复配对的灯条的配对分数和索引
+                    if score < score_max:  # 保留得分更高的配对
+                        del matched[0][i], matched[1][i], matched[2][i]
+                        matched[0].append(i1)
+                        matched[1].append(index_max)
+                        matched[2].append(score_max)
+
+        if matched[0]:  # 配对成功
+            for i1, i2, score in zip(matched[0], matched[1], matched[2]):
+                armor = self.rectToArmor(rects[i1], rects[i2])
+                armors.append((armor, score))
         return armors
