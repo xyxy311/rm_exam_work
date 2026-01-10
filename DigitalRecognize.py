@@ -3,8 +3,9 @@ import numpy as np
 import support as sp
 
 class DigitalRecognizer:
-    def __init__(self, ):
-        pass
+    def __init__(self, hog, svm):
+        self.hog = hog
+        self.svm = svm
     
     # 扩展装甲板四边形
     def expandArmor(self, armor_shape, ratio=2):
@@ -20,7 +21,7 @@ class DigitalRecognizer:
 
         return np.array((p1, p2, p3, p4), dtype=np.int32)
 
-    # 提取数字ROI
+    # 从扩展的装甲板四边形提取数字ROI
     def getROI(self, img, shape):
 
         # 透视变换
@@ -65,6 +66,17 @@ class DigitalRecognizer:
 
         return zone
     
-    # 识别数字
+    # 识别数字，返回整数
     def recognize(self, zone):
-        pass
+        feature = self.hog.compute(zone).flatten()
+        features = np.array([feature], dtype=np.float32)
+        _, pred = self.svm.predict(features)
+        return int(pred[0][0])
+    
+    # 运行识别流程
+    def run(self, frame, armor):
+        shape = self.expandArmor(armor)
+        roi = self.getROI(frame, shape)
+        digital = self.extractDigital(roi)
+        pred = self.recognize(digital)
+        return pred
