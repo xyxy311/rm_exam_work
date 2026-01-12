@@ -47,10 +47,10 @@ if __name__ == "__main__":
             light.drawLight(frame)
         armors = matcher.matchLight(lights)
         for armor in armors:
-            armor.drawArmor(frame)
             recor.run(frame, armor, True)
+            armor.drawArmor(frame, True)
         cv2.imshow("Light Bar Detection", frame)
-        if cv2.waitKey(100) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()
 

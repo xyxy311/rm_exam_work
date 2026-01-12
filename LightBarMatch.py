@@ -21,20 +21,25 @@ class LightBarMatch:
 
     # 初步筛选灯条对
     def filterLight(self, light1, light2):
+
+        # 计算属性差异
         angle_diff = abs(light1.angle - light2.angle)
         x_diff = abs(light1.pos[0] - light2.pos[0])
         y_diff = abs(light1.pos[1] - light2.pos[1])
-        thresh_x = (light1.length + light2.length) * 1.72
-        ''' 注：
-        1.72 = 230(大装甲板宽度) / 67(灯条高度) / 2(取两个灯条的平均值作为平均宽度)
-        '''
-        thresh_y = (light1.length + light2.length) / 2
+        length_diff = abs(light1.length - light2.length)
+        length_mean = (light1.length + light2.length) / 2
 
-        if angle_diff > self.thresh_angle or \
-            x_diff > thresh_x or y_diff > thresh_y:
+        # 差异阈值
+        x_diff_min = length_mean * 0.5
+        x_diff_max = length_mean * 3.44  # 3.44 = 230(大装甲板宽度) / 67(灯条高度)
+        y_diff_max = (light1.length + light2.length) / 4
+
+        if angle_diff > self.thresh_angle or length_diff > length_mean or\
+            x_diff > x_diff_max or x_diff < x_diff_min or y_diff > y_diff_max:
             return None        # 超过阈值，直接斩杀
         else:
-            return angle_diff  # 返回角度差
+            distance = np.sqrt(x_diff**2 + y_diff**2)  # 计算灯条中心距离
+            return angle_diff, length_diff, distance, length_mean  # 返回灯条属性差异信息
 
     # 将配对成功的灯条转换成装甲板矩形
     def rectToArmor(self, light1, light2):
@@ -54,31 +59,36 @@ class LightBarMatch:
         armors = []  # 配对成功的装甲板列表
 
         for i1, rect1 in enumerate(lights[: len(lights)-1]):
-            score_max = 0
+            score_max = -100
             i2_max = -1  # 和i1灯条配对得分最高的灯条索引
 
             for i2, rect2 in enumerate(lights[i1 + 1:], i1 + 1): # 避免重复配对
-                angle_diff = self.filterLight(rect1, rect2)
+                info = self.filterLight(rect1, rect2)
 
-                # 初步筛选成功，通过角度差计算配对得分
-                if angle_diff is not None:
-                    score = 1 - (angle_diff / self.thresh_angle)
+                # 初步筛选成功，计算配对得分
+                if info is not None:
+                    angle_diff, length_diff, distance, length_mean = info
 
+                    # 计算分数
+                    score = 100 - 50 * (angle_diff / self.thresh_angle)
+                    score -= length_diff / length_mean * distance
+                    score = int(score)
+                    
                     # 更新最大得分和配对灯条索引
                     if score > score_max:
                         score_max = score
                         i2_max = i2
 
             if i2_max != -1:  # 配对成功
-                if i1 not in matched[1] and i2_max not in matched[1]:
+                if i1 not in matched[1] and i2_max not in matched[1]:  # 保证这两个灯条都未配对
                     matched[0].append(i1)
                     matched[1].append(i2_max)
                     matched[2].append(score_max)
                 else:  # 避免重复配对
                     for i, i2 in enumerate(matched[1]):
-                        if i2 == i2_max:
+                        if i2 == i1 or i2 == i2_max:
                             break  # 先找到重复配对的灯条的配对分数和索引
-                    if score < score_max:  # 保留得分更高的配对
+                    if matched[2][i] < score_max:  # 保留得分更高的配对
                         del matched[0][i], matched[1][i], matched[2][i]
                         matched[0].append(i1)
                         matched[1].append(i2_max)

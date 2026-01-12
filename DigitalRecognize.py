@@ -30,7 +30,9 @@ class DigitalRecognizer:
         M = cv2.getPerspectiveTransform(pts1, pts2)
 
         # 裁剪
-        roi = cv2.warpPerspective(img, M, (50, 50))
+        roi = cv2.warpPerspective(img, M, (50, 50)) 
+        cv2.imshow('roi', roi)
+        # cv2.waitKey(0)
 
         return roi
     
@@ -44,6 +46,8 @@ class DigitalRecognizer:
         # 找到最大的连通域，即为数字
         num_labels, labels, stats, centroids = \
             cv2.connectedComponentsWithStats(binary, connectivity=8)
+        if num_labels < 2:
+            return None
         i = np.argmax(stats[1:, 4])
         x, y, w, h = stats[i+1, :4]
         digital = binary[y: y+h, x: x+w]
@@ -76,6 +80,8 @@ class DigitalRecognizer:
     def run(self, frame, armor ,draw=False):
         shape = self.expandArmor(armor)
         roi = self.getROI(frame, shape)
+        if roi is None:
+            return None
         digital = self.extractDigital(roi)
         pred = self.recognize(digital)
         if draw:

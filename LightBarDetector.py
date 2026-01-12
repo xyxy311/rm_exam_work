@@ -39,8 +39,8 @@ class Light:
 
 # 识别灯条
 class LightBarDetector:
-    def __init__(self, enemy_color="red", area_thresh=50, 
-                 aspect_ratio_range=(2, 15), angle_range=(60, 120)):
+    def __init__(self, enemy_color="red", area_thresh=25, 
+                 aspect_ratio_range=(1.5, 15), angle_range=(60, 120)):
         self.enemy_color = enemy_color  # 配置敌方颜色
         self.area_thresh = area_thresh  # 灯条最小面积
         self.aspect_ratio_range = aspect_ratio_range  # 高宽比范围（令h > w）
@@ -102,11 +102,10 @@ class LightBarDetector:
     # 检测灯条
     def detect(self, binary):
 
+        lights = []
         # 提取轮廓
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        light_bars = []
-        
+                
         for cnt in contours:
 
             # 计算轮廓面积，过滤过小目标
@@ -116,7 +115,7 @@ class LightBarDetector:
             
             # 生成旋转矩形
             min_rect = cv2.minAreaRect(cnt)
-            _, (w, h), angle = sp.standardRect(min_rect)
+            (x, y), (w, h), angle = sp.standardRect(min_rect)
             aspect_ratio = h / w
             
             # 筛选：长宽比+角度符合要求
@@ -126,46 +125,12 @@ class LightBarDetector:
                 self.angle_range[0] <= angle <= self.angle_range[1]
                 ):
 
-                light_bars.append(min_rect)        
-        return light_bars
-    
-    # 拟合灯条直线，创建灯条对象
-    def fitLightLine(self, light_bars, binary):
-
-        lights = []
-        # 依次对每个灯条区域处理
-        for bar in light_bars:
-
-            w, h = bar[1]
-            if w > h:
-                w, h = h, w
-
-            # 获得灯条区域的二值图像
-            (x1, y1), _, (x2, y2), _ = cv2.boxPoints(bar).astype(np.int32)
-            if x1 > x2:
-                x1, x2 = x2, x1
-            if y1 > y2:
-                y1, y2 = y2, y1
-            light_roi = binary[y1:y2, x1:x2]
-
-            # 获取灯条点集
-            y_coords, x_coords = np.where(light_roi > 0)
-            light_points = np.stack([x_coords, y_coords], axis=1)
-
-            # 拟合灯条直线，创建灯条对象
-            if len(light_points > 1):
-                [vx, vy, x, y] = cv2.fitLine(light_points, cv2.DIST_L2, int(w * 2), 0.01, 0.01)
-                angle = int(np.degrees(np.arctan(vy/vx)))
-                if angle < 0:
-                    angle += 180
-
-                light = Light(pos=(int(x + x1), int(y + y1)), angle=angle, length=h)
-                lights.append(light)                
+                light = Light((x, y), angle, h)     
+                lights.append(light)  
         return lights
     
     # 运行流程
     def run(self, frame):
         binary = self.preprocess(frame)
-        light_bars = self.detect(binary)
-        lights = self.fitLightLine(light_bars, binary)
+        lights = self.detect(binary)
         return lights
