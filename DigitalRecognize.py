@@ -8,8 +8,8 @@ class DigitalRecognizer:
         self.svm = svm
     
     # 扩展装甲板四边形
-    def expandArmor(self, armor_shape, ratio=2):
-        pt1, pt2, pt3, pt4 = armor_shape
+    def expandArmor(self, armor, ratio=2):
+        pt1, pt2, pt3, pt4 = armor.points
         p1, p2 = sp.expandLine(pt1, pt2, ratio)
         p3, p4 = sp.expandLine(pt3, pt4, ratio)
 
@@ -62,7 +62,6 @@ class DigitalRecognizer:
         x2 = int(14 + w_small / 2)
         y2 = int(14 + h_small / 2)
         zone[y1: y2, x1: x2] = digital_small
-        cv2.imshow('zone', zone)
 
         return zone
     
@@ -74,9 +73,12 @@ class DigitalRecognizer:
         return int(pred[0][0])
     
     # 运行识别流程
-    def run(self, frame, armor):
+    def run(self, frame, armor ,draw=False):
         shape = self.expandArmor(armor)
         roi = self.getROI(frame, shape)
         digital = self.extractDigital(roi)
         pred = self.recognize(digital)
+        if draw:
+            cv2.putText(frame, str(pred), shape[0], cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8, (0, 255, 0), 2)
         return pred
