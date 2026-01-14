@@ -12,7 +12,9 @@ if __name__ == "__main__":
     matcher = LBM.LightBarMatch()
     recor = DR.DigitalRecognizer(hog, svm)
 
-    # frame = cv2.imread('video_and_image\\image2.png')
+    # frame = cv2.imread('video_and_image/10.png')
+    # if frame is None:
+    #     exit("打不开！")
     
     # # 调整图像大小
     # ratio = 800 / max(frame.shape[:2])
@@ -21,25 +23,35 @@ if __name__ == "__main__":
     # cv2.imshow("frame", frame)
 
     # lights = detector.run(frame)
-    # for light in lights:
+    # for i, light in enumerate(lights):
     #     light.drawLight(frame)
     # armors = matcher.matchLight(lights)
     # for armor in armors:
+    #     recor.run(frame, armor, True)
     #     armor.drawArmor(frame)
-
     # cv2.imshow("evnetual", frame)
     # cv2.waitKey(0)
 
     cap = cv2.VideoCapture("video_and_image\\test03.mp4")
+    _, frame = cap.read()
+    h, w = frame.shape[:2]
+    ratio = 800 / max(h, w)
+    frame_width = int(w * ratio)
+    frame_height = int(h * ratio)
+    # video_writer = cv2.VideoWriter(
+    #     "video_and_image/gangle.mp4",                  # 输出视频路径
+    #     cv2.VideoWriter_fourcc(*'mp4v'),# 编码器
+    #     15,                           # 帧率
+    #     (frame_width, frame_height)    # 帧分辨率（宽，高）
+    # )
 
-    while cap.isOpened():
+    while cv2.waitKey(10) & 0xFF != ord('q'):
         ret, frame = cap.read()
         if not ret:
             break
 
         # 调整图像大小
-        ratio = 800 / max(frame.shape[:2])
-        frame = cv2.resize(frame, None, fx=ratio, fy=ratio)
+        frame = cv2.resize(frame, (frame_width, frame_height))
         cv2.imshow("frame", frame)
     
         lights = detector.run(frame)
@@ -48,10 +60,10 @@ if __name__ == "__main__":
         armors = matcher.matchLight(lights)
         for armor in armors:
             recor.run(frame, armor, True)
-            armor.drawArmor(frame, True)
+            armor.drawArmor(frame, False)
         cv2.imshow("Light Bar Detection", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    cap.release()
+        # video_writer.write(frame)
 
+    cap.release()
+    # video_writer.release()
     cv2.destroyAllWindows()

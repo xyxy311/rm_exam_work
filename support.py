@@ -10,22 +10,6 @@ def standardRect(rect):
         angle += 90
     return (x, y), (w, h), angle
 
-# 将统一过的矩形（灯条）转化为线，支持传入角度参数
-def rectToline(rect, angle=None):
-    if angle is None:
-        (x, y), (_, h), angle = rect
-    else:
-        (x, y), (_, h), _ = rect
-    rad = radians(angle)
-    sin_a = sin(rad)
-    cos_a = cos(rad)
-    x1 = int(x - h / 2 * cos_a)
-    x2 = int(x + h / 2 * cos_a)
-    y1 = int(y - h / 2 * sin_a)
-    y2 = int(y + h / 2 * sin_a)
-
-    return (x1, y1), (x2, y2)
-
 # 延展线段
 def expandLine(pt1, pt2, ratio):
     x1, y1 = pt1

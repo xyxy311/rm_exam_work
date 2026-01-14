@@ -31,8 +31,6 @@ class DigitalRecognizer:
 
         # 裁剪
         roi = cv2.warpPerspective(img, M, (50, 50)) 
-        cv2.imshow('roi', roi)
-        # cv2.waitKey(0)
 
         return roi
     

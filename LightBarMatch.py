@@ -16,8 +16,10 @@ class Armor:
 
 
 class LightBarMatch:
-    def __init__(self, thresh_angle=10):
+    def __init__(self, thresh_angle=15, thresh_x=[0.5, 3.44], thresh_y=1):
         self.thresh_angle = thresh_angle  # 允许的最大角度差
+        self.thresh_x = thresh_x  # 允许的水平方向最大差距系数
+        self.thresh_y = thresh_y  # 允许的垂直方向最大差距系数
 
     # 初步筛选灯条对
     def filterLight(self, light1, light2):
@@ -30,16 +32,19 @@ class LightBarMatch:
         length_mean = (light1.length + light2.length) / 2
 
         # 差异阈值
-        x_diff_min = length_mean * 0.5
-        x_diff_max = length_mean * 3.44  # 3.44 = 230(大装甲板宽度) / 67(灯条高度)
-        y_diff_max = (light1.length + light2.length) / 4
+        x_diff_min = length_mean * self.thresh_x[0]
+        x_diff_max = length_mean * self.thresh_x[1]  
+        '''默认的系数3.44 = 230(大装甲板宽度) / 67(灯条高度)'''
+        y_diff_max = (light1.length + light2.length) / 2 * self.thresh_y
 
         if angle_diff > self.thresh_angle or length_diff > length_mean or\
             x_diff > x_diff_max or x_diff < x_diff_min or y_diff > y_diff_max:
             return None        # 超过阈值，直接斩杀
         else:
             distance = np.sqrt(x_diff**2 + y_diff**2)  # 计算灯条中心距离
-            return angle_diff, length_diff, distance, length_mean  # 返回灯条属性差异信息
+
+            # 返回灯条属性差异信息
+            return angle_diff, length_diff, distance, length_mean, y_diff
 
     # 将配对成功的灯条转换成装甲板矩形
     def rectToArmor(self, light1, light2):
@@ -67,11 +72,11 @@ class LightBarMatch:
 
                 # 初步筛选成功，计算配对得分
                 if info is not None:
-                    angle_diff, length_diff, distance, length_mean = info
+                    angle_diff, length_diff, distance, length_mean, y_diff = info
 
                     # 计算分数
                     score = 100 - 50 * (angle_diff / self.thresh_angle)
-                    score -= length_diff / length_mean * distance
+                    score -= length_diff / length_mean * distance + 100 * y_diff / distance
                     score = int(score)
                     
                     # 更新最大得分和配对灯条索引
